@@ -20,10 +20,16 @@ This tool is a web-based utility designed to decode and verify the STIR/SHAKEN I
 1.  **Obtain the HTML:** Download the `stirshaken_decoder.html` file.
 2.  **Open in a Browser:** Open the `stirshaken_decoder.html` file in your web browser.
 3.  **Paste the Identity Header or JWT:** In the provided text area, paste either the complete Identity header from the SIP SDP message or the raw JWT token.
+
+    ![Enter Identity Header or JWT](example/enter-identity.png)
+
 4.  **Decode and Verify:** Click the "Decode & Verify" button.
 5.  **View the Results:** The tool will display the following information:
     * Decoded JWT header and payload.
     * Signature verification status (valid or invalid).
+      
+   ![JWT Verification Status](example/jwt-verified.png)  
+
     * Certificate information.
     * Full debug output.
 6.  **Manual Certificate Chain Input (If Necessary):** If the certificate chain cannot be downloaded automatically, the tool will display a "Manual Certificate Chain Input" section.  In this case:
