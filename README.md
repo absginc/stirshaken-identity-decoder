@@ -33,6 +33,9 @@ This tool is a web-based utility designed to decode and verify the STIR/SHAKEN I
     * Certificate information.
     * Full debug output.
 6.  **Manual Certificate Chain Input (If Necessary):** If the certificate chain cannot be downloaded automatically, the tool will display a "Manual Certificate Chain Input" section.  In this case:
+
+   ![JWT Verification Status](example/cors-issue.png)  
+   
     * Paste the full certificate chain (in PEM format) into the provided text area.
     * Click the "Decode with Pasted Certificate Chain" button.
 
