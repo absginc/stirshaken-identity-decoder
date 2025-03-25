@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIR/SHAKEN Identity Header Decoder</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.5.27/jsrsasign-all-min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 20px;
+            background-color: #f9faff;
+            color: #333;
+            line-height: 1.7;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+            text-align: center;
+            font-weight: 600;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 15px;
+        }
+
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        p {
+            color: #444;
+            margin-bottom: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 140px;
+            padding: 15px;
+            margin-bottom: 25px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: monospace;
+            resize: vertical;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            background-color: #4299e1;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            font-weight: 500;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            background-color: #3182ce;
+            box-shadow: 0 3px 7px rgba(0, 0, 0, 0.15);
+        }
+
+        button:focus {
+            outline: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        pre {
+            background-color: #f0f0f0;
+            padding: 20px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border: 1px solid #e0e0e0;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+
+        .valid {
+            color: #27ae60;
+            font-weight: 600;
+        }
+
+        .invalid {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #certChainDiv {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f7fafc;
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        #certChainDiv h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+            font-size: 1.4em;
+            font-weight: 600;
+        }
+
+        #certChainDiv textarea {
+            margin-bottom: 20px;
+        }
+
+        .section {
+            margin-top: 30px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 20px;
+        }
+
+        .section:first-of-type {
+            border-top: none;
+            padding-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>STIR/SHAKEN Identity Header Decoder</h1>
+        <p>Paste your full Identity header or a raw JWT token:</p>
+        <textarea id="tokenInput" placeholder="Paste your token here..."></textarea>
+        <button onclick="decodeToken()">Decode & Verify</button>
+
+        <div id="decodedSection" class="section hidden">
+            <h2>Decoded JWT</h2>
+            <pre id="decodedOutput"></pre>
+        </div>
+
+        <div id="signatureSection" class="section hidden">
+            <h2>Signature Verification</h2>
+            <pre id="signatureStatus"></pre>
+        </div>
+
+        <div id="certificateSection" class="section hidden">
+            <h2>Certificate Information</h2>
+            <pre id="certificateInfo"></pre>
+        </div>
+
+        <div id="debugSection" class="section hidden">
+            <h2>Full Debug Dump</h2>
+            <pre id="debugDump"></pre>
+        </div>
+
+        <div id="certChainDiv" class="hidden">
+            <h2>Manual Certificate Chain Input</h2>
+            <p>It appears that downloading the certificate failed (likely a CORS issue). Please paste the full public certificate chain below and click "Decode with Pasted Certificate Chain".</p>
+            <textarea id="certChainInput" placeholder="Paste certificate chain here..."></textarea>
+            <button onclick="decodeWithCertChain()">Decode with Pasted Certificate Chain</button>
+        </div>
+    </div>
+    <script>
+        // Extract the JWT from input. If an Identity header is provided, extract the token part.
+        function extractJWT(input) {
+            let match = input.match(/Identity:\s*([^;]+)/i);
+            return match ? match[1] : input.trim();
+        }
+
+        // Convert ASN1 time to human-readable format.
+        function convertASN1Time(asn1Time) {
+            if (!asn1Time || asn1Time.length < 12)
+                return "Unknown";
+            const asn1TimeString = asn1Time; // Create a constant to hold the value
+            let year = asn1TimeString.length === 13 ? "20" + asn1TimeString.substring(0, 2) : asn1TimeString.substring(0, 4);
+            let month = asn1TimeString.substring(asn1TimeString.length - 11, asn1TimeString.length - 9);
+            let day = asn1TimeString.substring(asn1TimeString.length - 9, asn1TimeString.length - 7);
+            let hour = asn1TimeString.substring(asn1TimeString.length - 7, asn1TimeString.length - 5);
+            let minute = asn1TimeString.substring(asn1TimeString.length - 5, asn1TimeString.length - 3);
+            let second = asn1TimeString.substring(asn1TimeString.length - 3, asn1TimeString.length - 1);
+            return `${year}-${month}-${day} ${hour}:${minute}:${second} UTC`;
+        }
+
+        // Extract certificates from a PEM string.
+        function extractCertificates(pem) {
+            return pem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) || [];
+        }
+
+        // Common function to process the JWT and certificate chain.
+        function processCertificateChain(jwt, certChain) {
+            // Clear previous outputs.
+            document.getElementById('decodedOutput').textContent = "";
+            document.getElementById('signatureStatus').textContent = "";
+            document.getElementById('certificateInfo').textContent = "";
+            document.getElementById('debugDump').textContent = "";
+
+            //show sections
+            document.getElementById('decodedSection').classList.remove("hidden");
+            document.getElementById('signatureSection').classList.remove("hidden");
+            document.getElementById('certificateSection').classList.remove("hidden");
+            document.getElementById('debugSection').classList.remove("hidden");
+
+            try {
+                // Split the token and decode header and payload.
+                const parts = jwt.split('.');
+                if (parts.length !== 3)
+                    throw new Error("Invalid JWT format");
+
+                const header = JSON.parse(atob(parts[0]));
+                const payload = JSON.parse(atob(parts[1]));
+                document.getElementById('decodedOutput').textContent = JSON.stringify({
+                    header,
+                    payload
+                }, null, 2);
+
+                // Extract certificates from the provided chain.
+                const certs = extractCertificates(certChain);
+                if (certs.length === 0)
+                    throw new Error("No valid certificates found in provided certificate chain");
+
+                let signingCert = null;
+                let signingKey = null;
+
+                // Loop through certificates to find one with "digitalSignature" key usage.
+                for (let cert of certs) {
+                    let x509 = new X509();
+                    x509.readCertPEM(cert);
+                    let keyUsage = x509.getExtKeyUsageString() || "Unknown";
+                    if (keyUsage.includes("digitalSignature")) {
+                        signingCert = cert;
+                        signingKey = KEYUTIL.getKey(cert);
+                        break;
+                    }
+                }
+
+                if (!signingKey)
+                    throw new Error("No signing certificate found in provided chain");
+
+                // Verify the JWT signature.
+                let isValid = KJUR.jws.JWS.verify(jwt, signingKey, [header.alg]);
+                document.getElementById('signatureStatus').innerHTML = isValid ?
+                    "<span class='valid'>✅ Signature Verified</span>" :
+                    "<span class='invalid'>❌ Signature Invalid</span>";
+
+                // Read certificate details.
+                let x509 = new X509();
+                x509.readCertPEM(signingCert);
+                const issuer = x509.getIssuerString();
+                const subject = x509.getSubjectString();
+                const validFrom = convertASN1Time(x509.getNotBefore());
+                const validTo = convertASN1Time(x509.getNotAfter());
+                const serialNumber = x509.getSerialNumberHex();
+                const publicKeyAlgorithm = x509.getSignatureAlgorithmField();
+                const fullCertDump = x509.getInfo();
+
+                // Display certificate information.
+                document.getElementById('certificateInfo').textContent = `
+Certificate Subject: ${subject}
+Issuer: ${issuer}
+Validity:
+  From: ${validFrom}
+  To:   ${validTo}
+Serial Number: ${serialNumber}
+Public Key Algorithm: ${publicKeyAlgorithm}
+`;
+
+                // Display the full certificate chain and parsed certificate info.
+                document.getElementById('debugDump').textContent = `Full Certificate Chain:
+${certs.join("\n\n")}
+
+Parsed Certificate Dump:
+${fullCertDump}`;
+            } catch (error) {
+                console.error("Error processing certificate chain:", error);
+                document.getElementById('signatureStatus').innerHTML = "<span class='invalid'>❌ Verification Failed. Check console for details.</span>";
+            }
+        }
+
+        // Primary function to decode the token and attempt to download the certificate.
+        async function decodeToken() {
+            // Hide the manual certificate input (if it was shown before)
+            document.getElementById('certChainDiv').classList.add("hidden");
+
+            const input = document.getElementById('tokenInput').value.trim();
+            const jwt = extractJWT(input);
+
+            // Clear previous outputs.
+            document.getElementById('decodedOutput').textContent = "";
+            document.getElementById('signatureStatus').textContent = "";
+            document.getElementById('certificateInfo').textContent = "";
+            document.getElementById('debugDump').textContent = "";
+
+            try {
+                const parts = jwt.split('.');
+                if (parts.length !== 3)
+                    throw new Error("Invalid JWT format");
+
+                const header = JSON.parse(atob(parts[0]));
+                const payload = JSON.parse(atob(parts[1]));
+                document.getElementById('decodedOutput').textContent = JSON.stringify({
+                    header,
+                    payload
+                }, null, 2);
+                document.getElementById('decodedSection').classList.remove("hidden"); //show JSON
+
+                // Ensure the header contains an x5u field.
+                if (!header.x5u)
+                    throw new Error("x5u field missing in JWT header");
+
+                console.log("Fetching certificate from:", header.x5u);
+
+                // Try to fetch the certificate chain using the x5u URL.
+                let certPem;
+                try {
+                    certPem = await fetch(header.x5u).then(res => res.text());
+                } catch (e) {
+                    console.error("Error fetching certificate:", e);
+                    document.getElementById('signatureStatus').innerHTML = "<span class='invalid'>❌ Failed to download certificate due to potential CORS error. Please paste the certificate chain below.</span>";
+                    document.getElementById('certChainDiv').classList.remove("hidden");
+                    return;
+                }
+
+                // Process the downloaded certificate chain.
+                processCertificateChain(jwt, certPem);
+            } catch (error) {
+                console.error("Error:", error);
+                document.getElementById('signatureStatus').innerHTML = "<span class='invalid'>❌ Verification Failed. Check console for details.</span>";
+            }
+        }
+
+        // Function to decode using the manually pasted certificate chain.
+        function decodeWithCertChain() {
+            const jwt = extractJWT(document.getElementById('tokenInput').value.trim());
+            const pastedCertChain = document.getElementById('certChainInput').value.trim();
+            if (!pastedCertChain) {
+                alert("Please paste a certificate chain.");
+                return;
+            }
+            processCertificateChain(jwt, pastedCertChain);
+        }
+    </script>
+  <script type="text/javascript">
+    var sc_project=13104400; 
+    var sc_invisible=1; 
+    var sc_security="56ef946d"; 
+  </script>
+  <script type="text/javascript" src="https://www.statcounter.com/counter/counter.js" async></script>
+  <noscript>
+    <div class="statcounter">
+      <a title="Web Analytics" href="https://statcounter.com/" target="_blank">
+        <img class="statcounter" src="https://c.statcounter.com/13104400/0/56ef946d/1/" alt="Web Analytics" referrerPolicy="no-referrer-when-downgrade">
+      </a>
+    </div>
+  </noscript>
+</body>
+</html>
