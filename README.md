@@ -1,4 +1,4 @@
-# IPtelX STIR/SHAKEN Identity Header Decoder
+# STIR/SHAKEN Identity Header Decoder
 
 ## Description
 
