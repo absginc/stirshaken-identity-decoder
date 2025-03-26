@@ -19,8 +19,8 @@ Got an SDP handy with an Identity: header ?  Try it live @ [absg.tech/stirshaken
 
 ## How to Use
 
-1.  **Obtain the HTML:** Download the `stirshaken_decoder.html` file.
-2.  **Open in a Browser:** Open the `stirshaken_decoder.html` file in your web browser.
+1.  **Obtain the HTML:** Download the `stirshakendecoder.html` file.
+2.  **Open in a Browser:** Open the `stirshakendecoder.html` file in your web browser.
 3.  **Paste the Identity Header or JWT:** In the provided text area, paste either the complete Identity header from the SIP SDP message or the raw JWT token.
 
     ![Enter Identity Header or JWT](example/enter-identity.png)
