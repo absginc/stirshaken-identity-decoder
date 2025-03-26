@@ -15,6 +15,8 @@ This tool is a web-based utility designed to decode and verify the STIR/SHAKEN I
 * **Debug Output:** Displays the full certificate chain and parsed certificate information for detailed analysis.
 * **User-Friendly Interface:** Simple and intuitive web interface.
 
+Got an SDP handy with an Identity: header ?  Try it live @ ![absg.tech/stirshaken-identity-decoder.html](https://absg.tech/stirshaken-identity-decoder.html)
+
 ## How to Use
 
 1.  **Obtain the HTML:** Download the `stirshaken_decoder.html` file.
